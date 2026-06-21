@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindFlow - 브레인스토밍 메모 보드</title>
+    <meta name="description" content="자유로운 공간에 메모를 적고 연관된 아이디어를 드래그하여 연결할 수 있는 정적 브레인스토밍 보드입니다.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Remix Icons for premium icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div id="app-container">
+        
+        <!-- Header Panel -->
+        <header id="header-panel" class="glass-panel">
+            <div class="logo-area">
+                <i class="ri-node-tree icon-logo"></i>
+                <div class="logo-text">
+                    <h1>MindFlow</h1>
+                    <span>Brainstorming Canvas</span>
+                </div>
+            </div>
+            
+            <!-- Search notes -->
+            <div class="search-area">
+                <div class="search-input-wrapper">
+                    <i class="ri-search-line search-icon"></i>
+                    <input type="text" id="search-input" placeholder="메모 검색..." autocomplete="off">
+                    <button id="search-clear-btn" class="search-clear-btn" title="검색 지우기"><i class="ri-close-line"></i></button>
+                </div>
+                <div id="search-results-count" class="search-results-count"></div>
+            </div>
+            
+            <!-- Global actions -->
+            <div class="global-actions">
+                <button id="undo-btn" class="btn-icon" title="되돌리기 (Ctrl + Z)" disabled>
+                    <i class="ri-arrow-go-back-line"></i>
+                </button>
+                <button id="redo-btn" class="btn-icon" title="다시 실행 (Ctrl + Y)" disabled>
+                    <i class="ri-arrow-go-forward-line"></i>
+                </button>
+                <span class="divider"></span>
+                <button id="export-btn" class="btn-icon" title="JSON 내보내기">
+                    <i class="ri-download-2-line"></i>
+                </button>
+                <button id="import-btn" class="btn-icon" title="JSON 가져오기">
+                    <i class="ri-upload-2-line"></i>
+                </button>
+                <button id="clear-all-btn" class="btn-icon btn-danger" title="모두 지우기">
+                    <i class="ri-delete-bin-7-line"></i>
+                </button>
+                <span class="divider"></span>
+                <button id="help-btn" class="btn-icon btn-primary" title="사용 방법 및 단축키">
+                    <i class="ri-question-line"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Canvas Container (Viewport) -->
+        <div id="canvas-container">
+            <!-- Virtual Canvas (Draggable & Zoomable) -->
+            <div id="canvas">
+                <!-- SVG Connections Layer -->
+                <svg id="svg-layer">
+                    <!-- Connections and dynamic guideline will be rendered here -->
+                    <defs>
+                        <!-- End marker for paths if arrow is desired -->
+                        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--color-edge-active)" />
+                        </marker>
+                        <!-- Glow filter for active lines -->
+                        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="3" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                    </defs>
+                    <g id="edges-group"></g>
+                    <!-- Guideline when drawing a connection -->
+                    <path id="guideline" class="edge-guideline" d="" style="display: none;"></path>
+                </svg>
+                
+                <!-- HTML Notes Layer -->
+                <div id="notes-layer">
+                    <!-- Dynamic note cards will be generated here -->
+                </div>
+            </div>
+            
+            <!-- Canvas Interaction Help overlay (Disappears on drag/zoom) -->
+            <div id="canvas-hint" class="canvas-hint">
+                <p><i class="ri-mouse-line"></i> 드래그하여 화면 이동 | <i class="ri-mouse-line"></i> 휠로 확대/축소 | <b>더블 클릭</b>하여 새 메모 생성</p>
+            </div>
+        </div>
+
+        <!-- Floating Zoom Panel (Bottom Right) -->
+        <div id="zoom-panel" class="glass-panel">
+            <button id="zoom-out-btn" class="btn-zoom" title="축소 (Ctrl + [ 또는 Wheel)"><i class="ri-subtract-line"></i></button>
+            <span id="zoom-indicator">100%</span>
+            <button id="zoom-in-btn" class="btn-zoom" title="확대 (Ctrl + ] 또는 Wheel)"><i class="ri-add-line"></i></button>
+            <button id="zoom-reset-btn" class="btn-zoom" title="화면 크기 맞추기 (Ctrl + 0)"><i class="ri-focus-3-line"></i></button>
+        </div>
+
+        <!-- Floating Left Toolbar (Canvas Quick Actions) -->
+        <div id="sidebar-toolbar" class="glass-panel">
+            <button id="add-note-btn" class="sidebar-btn" title="새 메모 카드 추가 (N)">
+                <i class="ri-add-circle-fill icon-add-note"></i>
+                <span class="sidebar-tooltip">새 메모 (N)</span>
+            </button>
+            <button id="snap-grid-btn" class="sidebar-btn" title="그리드 스냅 켜기/끄기 (G)">
+                <i class="ri-grid-fill"></i>
+                <span class="sidebar-tooltip">그리드 스냅 (G)</span>
+            </button>
+        </div>
+
+        <!-- Shortcut Modal -->
+        <div id="help-modal" class="modal-overlay">
+            <div class="modal-content glass-panel animated-modal">
+                <div class="modal-header">
+                    <h2><i class="ri-question-line"></i> MindFlow 사용법</h2>
+                    <button class="modal-close-btn" id="help-close-btn"><i class="ri-close-line"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="instruction-section">
+                        <h3><i class="ri-bubble-chart-line"></i> 핵심 기능</h3>
+                        <ul>
+                            <li><b>메모 생성:</b> 빈 화면을 <strong>더블 클릭</strong>하거나 왼쪽 툴바의 <strong>[+]</strong> 아이콘을 누릅니다.</li>
+                            <li><b>화면 이동(Pan):</b> 마우스 <strong>오른쪽 버튼</strong> 또는 <strong>휠 클릭</strong>한 상태로 드래그하거나, <strong>스페이스바를 누른 채</strong> 왼쪽 마우스 드래그를 합니다.</li>
+                            <li><b>화면 줌(Zoom):</b> 마우스 <strong>휠 스크롤</strong>을 하거나 우측 하단 줌 패널의 +, - 버튼을 클릭합니다.</li>
+                            <li><b>메모 연결:</b> 각 메모의 모서리에 마우스를 대면 활성화되는 <strong>커넥터 포트(원형 단추)</strong>에서 다른 메모 카드로 드래그 앤 드롭하면 화살표 연결선이 이어집니다.</li>
+                            <li><b>메모/연결 삭제:</b> 메모의 우측 상단 <strong>[x]</strong> 버튼을 누르거나, 연결선을 클릭한 후 표시되는 삭제 버튼을 누릅니다.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="instruction-section">
+                        <h3><i class="ri-keyboard-line"></i> 단축키 안내</h3>
+                        <div class="shortcuts-grid">
+                            <div class="shortcut-item"><kbd>Double Click</kbd> <span>새 메모 생성</span></div>
+                            <div class="shortcut-item"><kbd>Space</kbd> + <kbd>Drag</kbd> <span>화면 이동</span></div>
+                            <div class="shortcut-item"><kbd>N</kbd> <span>새 메모 생성</span></div>
+                            <div class="shortcut-item"><kbd>G</kbd> <span>그리드 스냅 전환</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl</kbd> + <kbd>Z</kbd> <span>실행 취소 (Undo)</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl</kbd> + <kbd>Y</kbd> <span>다시 실행 (Redo)</span></div>
+                            <div class="shortcut-item"><kbd>Ctrl</kbd> + <kbd>F</kbd> <span>메모 검색창 열기</span></div>
+                            <div class="shortcut-item"><kbd>Esc</kbd> <span>모달 닫기 / 작업 취소</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="help-confirm-btn">확인</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import JSON Modal -->
+        <div id="import-modal" class="modal-overlay">
+            <div class="modal-content glass-panel animated-modal">
+                <div class="modal-header">
+                    <h2><i class="ri-upload-2-line"></i> JSON 가져오기</h2>
+                    <button class="modal-close-btn" id="import-close-btn"><i class="ri-close-line"></i></button>
+                </div>
+                <div class="modal-body">
+                    <p>MindFlow 파일(.json)을 아래 영역에 드래그하거나 텍스트 데이터를 붙여넣으세요.</p>
+                    <textarea id="import-textarea" placeholder='{"notes": [...], "connections": [...]}'></textarea>
+                    <div class="file-upload-wrapper">
+                        <label for="file-upload-input" class="file-upload-label">
+                            <i class="ri-file-code-line"></i> JSON 파일 선택
+                        </label>
+                        <input type="file" id="file-upload-input" accept=".json">
+                        <span id="file-name-display">선택된 파일 없음</span>
+                    </div>
+                    <div id="import-error" class="error-msg"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="import-cancel-btn">취소</button>
+                    <button class="btn btn-primary" id="import-submit-btn">가져오기</button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- App Logic Script -->
+    <script src="app.js"></script>
+</body>
+</html>
